@@ -5,6 +5,7 @@
 #include "ui/Ui.h"
 
 namespace screens::readerLayout {
+    inline constexpr uint8_t kPagePixelsPerEm = 20;
     size_t pageStrikeIndex();
     ui::Rect readingArea(int16_t width, int16_t height, bool verticalPage);
     ui::Rect batteryRect(int16_t width, int16_t height);

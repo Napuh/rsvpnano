@@ -50,11 +50,12 @@ namespace screens::PageReader {
         }
 
         void activateFace(ui::fonts::AlphaTextRenderer<640>& text, const FontCatalog::Face& face) {
-            text.setFont(face.raster.get());
+            text.setFont(face.raster.get(), face.pixelsPerEm);
         }
 
         bool sameFace(const FontCatalog::Face& left, const FontCatalog::Face& right) {
-            return &left.raster.get() == &right.raster.get() && left.shaper == right.shaper;
+            return &left.raster.get() == &right.raster.get() && left.shaper == right.shaper
+                && left.pixelsPerEm == right.pixelsPerEm;
         }
 
         uint8_t rememberFace(State& state, const FontCatalog::Face& face) {
@@ -262,7 +263,6 @@ namespace screens::PageReader {
                     const std::string_view word = ReadingLoop::wordAt(session, index);
                     const FontCatalog::Face face = typeface(index);
                     const uint8_t faceIndex = rememberFace(state, face);
-                    const ui::fonts::AlphaFont& font = face.raster.get();
                     activateFace(text, face);
                     State::Word& prepared =
                         prepareWord(state, index, faceIndex, text, face, typography, session, shapingParagraph,
@@ -277,9 +277,9 @@ namespace screens::PageReader {
                     if (index > line.start && widthWithWord > maximumWidth)
                         break;
                     width = widthWithWord;
-                    ascent = std::max(ascent, font.ascent);
-                    descent = std::max(descent, font.descent);
-                    yAdvance = std::max(yAdvance, font.yAdvance);
+                    ascent = std::max(ascent, text.ascent());
+                    descent = std::max(descent, text.descent());
+                    yAdvance = std::max(yAdvance, text.lineAdvance());
                     ++index;
                 }
                 if (index == line.start)

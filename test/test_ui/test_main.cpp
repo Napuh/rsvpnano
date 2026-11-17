@@ -653,6 +653,57 @@ void test_page_reader_reselects_typeface_after_seek_or_invalidation() {
     TEST_ASSERT_EQUAL(wordCapacity, state.words.capacity());
 }
 
+void test_page_reader_reflows_after_font_size_change_and_keeps_navigation() {
+    Arduino_GFX gfx(136, 40);
+    ui::Context context(gfx);
+    ui::fonts::AlphaTextRenderer<640> text(gfx);
+    TEST_ASSERT_TRUE(text.begin());
+    context.setTheme(theme());
+    settings::TypographySettings typography;
+    std::array<std::string, 64> words;
+    words.fill("a");
+    ReadingSession session;
+    ReadingLoop::setWords(session, words, 0);
+    screens::PageReader::State state;
+    auto largerFont = kWideReaderFont;
+    largerFont.ascent = 14;
+    largerFont.descent = 4;
+    largerFont.yAdvance = 18;
+    const auto typeface = [&](size_t) -> FontCatalog::Face {
+        return {std::cref(typography.fontSizeIndex == 0 ? largerFont : kReaderFont), nullptr};
+    };
+    constexpr ui::Rect area{0, 0, 136, 40};
+    const auto draw = [&](uint32_t revision) {
+        context.beginFrame(1);
+        screens::PageReader::draw(state, context, text, typeface, typography, revision, session, area);
+        context.endFrame();
+    };
+
+    typography.fontSizeIndex = 3;
+    draw(1);
+    const size_t smallPageEnd = state.pageEnd;
+    typography.fontSizeIndex = 0;
+    draw(2);
+    TEST_ASSERT_GREATER_THAN(0, state.pageEnd);
+    TEST_ASSERT_LESS_THAN(smallPageEnd, state.pageEnd);
+    TEST_ASSERT_EQUAL_PTR(&largerFont, &state.faces.front().raster.get());
+    for (size_t i = 0; i < state.lineCount; ++i) {
+        TEST_ASSERT_GREATER_OR_EQUAL(area.y, state.lines[i].top);
+        TEST_ASSERT_LESS_OR_EQUAL(area.y + area.h, state.lines[i].bottom);
+        TEST_ASSERT_LESS_OR_EQUAL(area.w, state.lines[i].width);
+    }
+
+    const size_t nextPage = state.pageEnd;
+    ReadingLoop::seekTo(session, nextPage);
+    draw(2);
+    TEST_ASSERT_EQUAL(nextPage, state.pageStart);
+    TEST_ASSERT_GREATER_THAN(nextPage, state.pageEnd);
+    ReadingLoop::seekTo(session, 0);
+    draw(2);
+    TEST_ASSERT_EQUAL(0, state.pageStart);
+    TEST_ASSERT_EQUAL(nextPage, state.pageEnd);
+}
+
 void test_page_reader_reanchors_distant_forward_seek_without_laying_out_intermediate_pages() {
     Arduino_GFX gfx(136, 17);
     ui::Context context(gfx);
@@ -1684,6 +1735,7 @@ int main(int, char**) {
     RUN_TEST(test_rect_intersection_clips_each_edge);
     RUN_TEST(test_portrait_rects_map_to_the_landscape_framebuffer);
     RUN_TEST(test_page_reader_reselects_typeface_after_seek_or_invalidation);
+    RUN_TEST(test_page_reader_reflows_after_font_size_change_and_keeps_navigation);
     RUN_TEST(test_page_reader_reanchors_distant_forward_seek_without_laying_out_intermediate_pages);
     RUN_TEST(test_page_reader_uses_each_words_selected_typeface_for_layout);
     RUN_TEST(test_page_reader_maps_vertical_columns_to_the_landscape_framebuffer);

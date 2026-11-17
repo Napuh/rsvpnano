@@ -121,9 +121,7 @@ namespace screens {
             return;
         std::vector<uint8_t> prepared(families.size());
         std::vector<size_t> firstWords(families.size(), SIZE_MAX);
-        const size_t sizeIndex = settings.mode == settings::ReadingMode::page
-                                   ? readerLayout::pageStrikeIndex()
-                                   : static_cast<size_t>(typography_.fontSizeIndex);
+        const size_t sizeIndex = typography_.fontSizeIndex;
         const auto prepare = [&](size_t wordIndex, std::string_view locale, uint32_t scripts) {
             for (const UnicodeText::ScriptTag& script: UnicodeText::SupportedScripts) {
                 if ((scripts & script.mask) == 0)
@@ -132,7 +130,10 @@ namespace screens {
                     settings::fontForText(overrides, locale, script.mask, typography_.fontId);
                 const size_t family = FontCatalog::selectFamily(families, requested, locale, script.mask);
                 if (family != 0 && !prepared[family]) {
-                    fonts.loadFace(family, sizeIndex);
+                    if (settings.mode == settings::ReadingMode::page)
+                        fonts.loadPageFace(family, readerLayout::pageStrikeIndex(), readerLayout::kPagePixelsPerEm);
+                    else
+                        fonts.loadFace(family, sizeIndex);
                     prepared[family] = true;
                     firstWords[family] = wordIndex;
                 }
@@ -366,7 +367,7 @@ namespace screens {
     }
 
     FontCatalog::Face ReaderScreen::pageTypeface(size_t wordIndex) {
-        return fonts.loadFace(fontChoice(wordIndex), readerLayout::pageStrikeIndex());
+        return fonts.loadPageFace(fontChoice(wordIndex), readerLayout::pageStrikeIndex(), readerLayout::kPagePixelsPerEm);
     }
 
     bool ReaderScreen::openBook(ui::Context& ui, StorageManager& storage, Preferences& preferences, size_t index,

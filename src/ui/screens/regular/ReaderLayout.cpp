@@ -3,7 +3,7 @@
 
 namespace screens::readerLayout {
     size_t pageStrikeIndex() {
-        return RFont4::kCompactStrikeIndex;
+        return RFont4::kCompactStrikeIndex - 1;
     }
     ui::Rect readingArea(int16_t width, int16_t height, bool verticalPage) {
         const int16_t left = verticalPage ? portraitTopStrip(height).h : 0;
